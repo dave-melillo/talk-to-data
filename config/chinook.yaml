@@ -1,0 +1,82 @@
+# Semantic configuration for Chinook database
+database: chinook
+description: "Music store database with artists, albums, tracks, invoices, and customers"
+
+tables:
+  artists:
+    description: "Music artists and bands"
+    columns:
+      ArtistId: "Unique identifier for the artist"
+      Name: "Artist or band name"
+
+  albums:
+    description: "Albums released by artists"
+    columns:
+      AlbumId: "Unique identifier for the album"
+      Title: "Album title"
+      ArtistId: "Foreign key to artists table"
+
+  tracks:
+    description: "Individual songs/tracks on albums"
+    columns:
+      TrackId: "Unique identifier for the track"
+      Name: "Track/song name"
+      AlbumId: "Foreign key to albums table"
+      MediaTypeId: "Type of media (MP3, AAC, etc.)"
+      GenreId: "Music genre"
+      Composer: "Song composer(s)"
+      Milliseconds: "Track duration in milliseconds"
+      Bytes: "File size in bytes"
+      UnitPrice: "Price per track"
+    business_terms:
+      - "song" = "track"
+      - "length" = "Milliseconds"
+      - "duration" = "Milliseconds"
+
+  genres:
+    description: "Music genres (Rock, Jazz, etc.)"
+    columns:
+      GenreId: "Unique identifier"
+      Name: "Genre name"
+
+  customers:
+    description: "Store customers"
+    columns:
+      CustomerId: "Unique identifier"
+      FirstName: "Customer first name"
+      LastName: "Customer last name"
+      Email: "Email address"
+      Country: "Customer country"
+
+  invoices:
+    description: "Customer purchase invoices"
+    columns:
+      InvoiceId: "Unique identifier"
+      CustomerId: "Foreign key to customers"
+      InvoiceDate: "Date of purchase"
+      Total: "Total amount"
+
+  invoice_items:
+    description: "Line items on invoices"
+    columns:
+      InvoiceLineId: "Unique identifier"
+      InvoiceId: "Foreign key to invoices"
+      TrackId: "Foreign key to tracks"
+      UnitPrice: "Price at time of sale"
+      Quantity: "Number of units"
+
+reference_queries:
+  - question: "How many albums does each artist have?"
+    sql: "SELECT ar.Name, COUNT(al.AlbumId) as album_count FROM artists ar LEFT JOIN albums al ON ar.ArtistId = al.ArtistId GROUP BY ar.ArtistId, ar.Name ORDER BY album_count DESC"
+
+  - question: "What are the top 10 longest songs?"
+    sql: "SELECT Name, Milliseconds/1000.0 as seconds FROM tracks ORDER BY Milliseconds DESC LIMIT 10"
+
+  - question: "Which genres have the most tracks?"
+    sql: "SELECT g.Name as genre, COUNT(t.TrackId) as track_count FROM genres g JOIN tracks t ON g.GenreId = t.GenreId GROUP BY g.GenreId, g.Name ORDER BY track_count DESC"
+
+  - question: "Who are the top 5 customers by total spending?"
+    sql: "SELECT c.FirstName || ' ' || c.LastName as customer, SUM(i.Total) as total_spent FROM customers c JOIN invoices i ON c.CustomerId = i.CustomerId GROUP BY c.CustomerId ORDER BY total_spent DESC LIMIT 5"
+
+  - question: "How many tracks are in each album?"
+    sql: "SELECT al.Title, COUNT(t.TrackId) as track_count FROM albums al LEFT JOIN tracks t ON al.AlbumId = t.AlbumId GROUP BY al.AlbumId, al.Title ORDER BY track_count DESC"
