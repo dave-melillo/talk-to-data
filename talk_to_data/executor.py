@@ -107,8 +107,13 @@ def csv_to_sqlite(csv_path: str, table_name: str = None) -> Tuple[str, Any]:
 
 if __name__ == "__main__":
     # Test
-    result = execute_query(
-        "SELECT * FROM artists LIMIT 5",
-        "sqlite:///data/chinook.db"
-    )
-    print(result)
+    import sys
+    
+    if len(sys.argv) > 2:
+        sql = sys.argv[1]
+        connection_string = sys.argv[2]
+        result = execute_query(sql, connection_string)
+        print(result)
+    else:
+        print("Usage: python executor.py '<SQL>' <connection_string>")
+        print("Example: python executor.py 'SELECT * FROM artists LIMIT 5' sqlite:///data/chinook.db")

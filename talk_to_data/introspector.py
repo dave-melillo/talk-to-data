@@ -160,7 +160,14 @@ def schema_to_prompt(schema: Dict[str, Any], semantic: Dict[str, Any] = None) ->
 
 
 if __name__ == "__main__":
-    # Test with SQLite
+    # Test with sample database
     import json
-    schema = introspect_schema("sqlite:///data/chinook.db")
-    print(json.dumps(schema, indent=2))
+    import sys
+    
+    if len(sys.argv) > 1:
+        connection_string = sys.argv[1]
+        schema = introspect_schema(connection_string)
+        print(json.dumps(schema, indent=2))
+    else:
+        print("Usage: python introspector.py <connection_string>")
+        print("Example: python introspector.py sqlite:///data/chinook.db")
