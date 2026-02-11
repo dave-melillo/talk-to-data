@@ -1,7 +1,9 @@
-"""Schema introspection - extract table/column metadata from any SQL database."""
+"""Schema introspection - extract table/column metadata from any SQL database or CSV file."""
 
 from sqlalchemy import create_engine, inspect, MetaData
 from typing import Dict, List, Any
+from pathlib import Path
+import pandas as pd
 
 
 def introspect_schema(connection_string: str) -> Dict[str, Any]:
@@ -55,6 +57,63 @@ def introspect_schema(connection_string: str) -> Dict[str, Any]:
             "primary_keys": primary_keys,
             "row_count": None  # Optional: could query COUNT(*)
         }
+    
+    return schema
+
+
+def introspect_csv(file_path: str, sample_rows: int = 100) -> Dict[str, Any]:
+    """
+    Introspect CSV file and return schema in same format as introspect_schema().
+    
+    Args:
+        file_path: Path to CSV file
+        sample_rows: Number of rows to sample for type inference
+    
+    Returns:
+        Schema dict with single table containing CSV columns
+    """
+    try:
+        # Read CSV file (sample first N rows for type inference)
+        df = pd.read_csv(file_path, nrows=sample_rows)
+    except Exception as e:
+        raise ValueError(f"Failed to read CSV file: {e}")
+    
+    columns = []
+    for col_name in df.columns:
+        dtype = df[col_name].dtype
+        
+        # Map pandas dtype to SQL type
+        if dtype == 'int64':
+            sql_type = 'INTEGER'
+        elif dtype == 'float64':
+            sql_type = 'REAL'
+        elif dtype == 'bool':
+            sql_type = 'BOOLEAN'
+        elif dtype in ['datetime64[ns]', 'datetime64']:
+            sql_type = 'DATETIME'
+        else:
+            sql_type = 'TEXT'
+        
+        columns.append({
+            "name": col_name,
+            "type": sql_type,
+            "nullable": df[col_name].isnull().any(),
+            "primary_key": False
+        })
+    
+    # CSV becomes a single table named after the file (minus extension)
+    table_name = Path(file_path).stem
+    
+    schema = {
+        "tables": {
+            table_name: {
+                "columns": columns,
+                "primary_keys": [],
+                "row_count": len(df)
+            }
+        },
+        "relationships": []  # CSVs have no FK relationships
+    }
     
     return schema
 

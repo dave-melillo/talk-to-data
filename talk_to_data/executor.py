@@ -2,7 +2,8 @@
 
 import pandas as pd
 from sqlalchemy import create_engine, text
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
+from pathlib import Path
 
 
 def execute_query(
@@ -75,6 +76,33 @@ def get_sample_data(
         connection_string
     )
     return result.get("data", pd.DataFrame())
+
+
+def csv_to_sqlite(csv_path: str, table_name: str = None) -> Tuple[str, Any]:
+    """
+    Load CSV into temporary in-memory SQLite database.
+    
+    Args:
+        csv_path: Path to CSV file
+        table_name: Optional table name (defaults to CSV filename)
+    
+    Returns:
+        Tuple of (connection_string, engine) for persistence
+    """
+    try:
+        df = pd.read_csv(csv_path)
+        
+        if table_name is None:
+            table_name = Path(csv_path).stem
+        
+        # Create in-memory SQLite database
+        engine = create_engine("sqlite:///:memory:")
+        df.to_sql(table_name, engine, index=False, if_exists='replace')
+        
+        return "sqlite:///:memory:", engine
+    
+    except Exception as e:
+        raise ValueError(f"Failed to load CSV into SQLite: {e}")
 
 
 if __name__ == "__main__":
