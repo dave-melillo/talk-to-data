@@ -29,9 +29,9 @@ tables:
       Bytes: "File size in bytes"
       UnitPrice: "Price per track"
     business_terms:
-      - "song" = "track"
-      - "length" = "Milliseconds"
-      - "duration" = "Milliseconds"
+      song: track
+      length: Milliseconds
+      duration: Milliseconds
 
   genres:
     description: "Music genres (Rock, Jazz, etc.)"

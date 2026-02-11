@@ -49,10 +49,16 @@ def get_business_terms(semantic: Dict[str, Any]) -> Dict[str, str]:
     terms = {}
     
     for table_name, table_info in semantic.get("tables", {}).items():
-        for term_mapping in table_info.get("business_terms", []):
-            if "=" in term_mapping:
-                user_term, db_term = term_mapping.split("=", 1)
-                terms[user_term.strip().strip('"')] = db_term.strip().strip('"')
+        table_terms = table_info.get("business_terms", {})
+        if isinstance(table_terms, dict):
+            # New format: dict of {user_term: db_term}
+            terms.update(table_terms)
+        elif isinstance(table_terms, list):
+            # Legacy format: list of "user_term = db_term" strings (for backwards compatibility)
+            for term_mapping in table_terms:
+                if "=" in term_mapping:
+                    user_term, db_term = term_mapping.split("=", 1)
+                    terms[user_term.strip().strip('"')] = db_term.strip().strip('"')
     
     return terms
 
@@ -127,9 +133,9 @@ tables:
       Bytes: "File size in bytes"
       UnitPrice: "Price per track"
     business_terms:
-      - "song" = "track"
-      - "length" = "Milliseconds"
-      - "duration" = "Milliseconds"
+      song: track
+      length: Milliseconds
+      duration: Milliseconds
 
   genres:
     description: "Music genres (Rock, Jazz, etc.)"
