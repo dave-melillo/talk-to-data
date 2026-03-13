@@ -146,7 +146,7 @@ def format_prompt(context: dict[str, str]) -> str:
 ---
 
 ## User Question
-"""{context['question']}"""
+"{context['question']}"
 
 ## Instructions
 Generate a PostgreSQL query to answer the user's question.
