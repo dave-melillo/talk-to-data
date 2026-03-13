@@ -244,4 +244,3 @@ async def execute_sql_safe(
         return result
     except SQLValidationError as e:
         raise HTTPException(status_code=400, detail=e.message)
- {"queries": [], "total": 0}
