@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api.routes import health, sources, tables, queries, upload
+from app.api.routes import health, sources, tables, queries, upload, normalize
 
 api_router = APIRouter()
 
@@ -14,3 +14,4 @@ api_router.include_router(sources.router, prefix="/sources", tags=["sources"])
 api_router.include_router(tables.router, prefix="/tables", tags=["tables"])
 api_router.include_router(queries.router, prefix="/queries", tags=["queries"])
 api_router.include_router(upload.router, prefix="/upload", tags=["upload"])
+api_router.include_router(normalize.router, prefix="/normalize", tags=["normalize"])
