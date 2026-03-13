@@ -31,7 +31,7 @@ class Source(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "ttd_sources"
 
     source_type: Mapped[SourceType] = mapped_column(
-        Enum(SourceType),
+        Enum(SourceType, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
     )
     source_name: Mapped[str] = mapped_column(
