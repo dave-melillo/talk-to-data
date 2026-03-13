@@ -15,6 +15,7 @@ from app.services.query_engine import (
     generate_sql,
     record_query,
 )
+from app.services.sql_validator import SQLValidationError, safe_execute, validate_sql
 
 router = APIRouter()
 
@@ -207,4 +208,40 @@ async def submit_feedback(
     db.commit()
     
     return {"status": "feedback recorded"}
+
+
+@router.post("/validate")
+async def validate_query_sql(
+    sql: str,
+    check_tables: bool = True,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """
+    Validate SQL without executing.
+    
+    Checks for:
+    - Blocked keywords (DDL/DML)
+    - Valid SQL syntax
+    - Table existence (optional)
+    """
+    result = validate_sql(sql, db if check_tables else None, check_tables)
+    return result
+
+
+@router.post("/execute-safe")
+async def execute_sql_safe(
+    sql: str,
+    limit: int = 1000,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """
+    Execute SQL with safety checks.
+    
+    Validates SQL before execution and adds LIMIT if needed.
+    """
+    try:
+        result = safe_execute(sql, db, limit=limit)
+        return result
+    except SQLValidationError as e:
+        raise HTTPException(status_code=400, detail=e.message)
  {"queries": [], "total": 0}
