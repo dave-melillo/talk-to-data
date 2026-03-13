@@ -1,0 +1,21 @@
+customer_id,customer_name,email,city,country,signup_date,total_orders,lifetime_value,status
+1,Alice Johnson,alice@example.com,New York,USA,2023-01-15,12,2850.00,active
+2,Bob Smith,bob@example.com,Los Angeles,USA,2023-02-20,8,1420.50,active
+3,Carol Williams,carol@example.com,Chicago,USA,2023-03-10,22,5200.00,active
+4,David Brown,david@example.com,Houston,USA,2023-04-05,3,450.00,active
+5,Eve Davis,eve@example.com,Phoenix,USA,2023-05-12,15,3100.00,active
+6,Frank Miller,frank@example.com,Philadelphia,USA,2023-06-18,1,150.00,inactive
+7,Grace Wilson,grace@example.com,San Antonio,USA,2023-07-22,28,6800.00,active
+8,Henry Moore,henry@example.com,San Diego,USA,2023-08-30,6,980.00,active
+9,Ivy Taylor,ivy@example.com,Dallas,USA,2023-09-14,0,0.00,inactive
+10,Jack Anderson,jack@example.com,San Jose,USA,2023-10-01,19,4200.00,active
+11,Kate Thomas,kate@example.com,Austin,USA,2023-10-15,11,2100.00,active
+12,Leo Jackson,leo@example.com,Jacksonville,USA,2023-11-02,7,1350.00,active
+13,Mia White,mia@example.com,Fort Worth,USA,2023-11-20,4,620.00,active
+14,Noah Harris,noah@example.com,Columbus,USA,2023-12-05,16,3800.00,active
+15,Olivia Martin,olivia@example.com,Charlotte,USA,2024-01-10,2,280.00,active
+16,Paul Garcia,paul@example.com,Seattle,USA,2024-01-25,9,1890.00,active
+17,Quinn Martinez,quinn@example.com,Denver,USA,2024-02-08,0,0.00,inactive
+18,Ruby Robinson,ruby@example.com,Boston,USA,2024-02-20,14,2950.00,active
+19,Sam Clark,sam@example.com,Nashville,USA,2024-03-01,5,780.00,active
+20,Tina Lewis,tina@example.com,Portland,USA,2024-03-15,21,4600.00,active

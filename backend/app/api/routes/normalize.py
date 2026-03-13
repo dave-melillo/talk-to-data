@@ -3,7 +3,7 @@
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -21,50 +21,12 @@ from app.services.normalizer import (
 router = APIRouter()
 
 
-@router.post("/{source_id}", response_model=TableRead)
-async def normalize_source_endpoint(
-    source_id: UUID,
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-) -> Table:
-    """
-    Normalize an uploaded source into a PostgreSQL table.
-    
-    Re-uploads the file to parse and load into the database.
-    """
-    source = db.query(Source).filter(Source.id == source_id).first()
-    if not source:
-        raise HTTPException(status_code=404, detail="Source not found")
-    
-    # Check if already normalized
-    existing_table = db.query(Table).filter(Table.source_id == source_id).first()
-    if existing_table:
-        raise HTTPException(
-            status_code=400,
-            detail="Source already normalized. Delete table first to re-normalize.",
-        )
-    
-    # Parse file
-    content = await file.read()
-    try:
-        df, metadata = parse_file(content, file.filename or source.original_filename or "data.csv")
-        columns = infer_column_types(df)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to parse file: {e}")
-    
-    # Normalize
-    try:
-        table = normalize_source(db, source, df, columns)
-        return table
-    except NormalizerError as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
+# IMPORTANT: Specific routes MUST come before parameterized routes
 @router.post("/upload-and-normalize", response_model=TableRead)
 async def upload_and_normalize(
     file: UploadFile = File(...),
-    source_name: str | None = None,
-    description: str | None = None,
+    source_name: str | None = Form(None),
+    description: str | None = Form(None),
     db: Session = Depends(get_db),
 ) -> Table:
     """
@@ -137,6 +99,46 @@ async def detect_relationships_endpoint(
         ],
         "count": len(relationships),
     }
+
+
+# Parameterized routes MUST come after specific routes
+@router.post("/{source_id}", response_model=TableRead)
+async def normalize_source_endpoint(
+    source_id: UUID,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+) -> Table:
+    """
+    Normalize an uploaded source into a PostgreSQL table.
+    
+    Re-uploads the file to parse and load into the database.
+    """
+    source = db.query(Source).filter(Source.id == source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    # Check if already normalized
+    existing_table = db.query(Table).filter(Table.source_id == source_id).first()
+    if existing_table:
+        raise HTTPException(
+            status_code=400,
+            detail="Source already normalized. Delete table first to re-normalize.",
+        )
+    
+    # Parse file
+    content = await file.read()
+    try:
+        df, metadata = parse_file(content, file.filename or source.original_filename or "data.csv")
+        columns = infer_column_types(df)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse file: {e}")
+    
+    # Normalize
+    try:
+        table = normalize_source(db, source, df, columns)
+        return table
+    except NormalizerError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/{table_id}")
