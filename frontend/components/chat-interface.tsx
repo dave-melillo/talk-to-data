@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, User, Bot, Loader2 } from "lucide-react";
+import { Send, User, Bot, Loader2, BarChart2 } from "lucide-react";
+import { ChartDisplay, isChartable } from "@/components/chart-display";
 
 interface Message {
   id: string;
@@ -165,6 +166,16 @@ export function ChatInterface({ onQuery }: ChatInterfaceProps) {
                             </tbody>
                           </table>
                         </div>
+                      </div>
+                    )}
+                    
+                    {message.data && message.columns && isChartable(message.data, message.columns) && (
+                      <div className="mt-3">
+                        <ChartDisplay
+                          data={message.data}
+                          columns={message.columns}
+                          title="Visualization"
+                        />
                       </div>
                     )}
                     
