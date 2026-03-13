@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChatInterface } from "@/components/chat-interface";
 import { FileUpload } from "@/components/file-upload";
+import { SettingsPanel } from "@/components/settings-panel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Database, MessageSquare, Upload } from "lucide-react";
 
@@ -12,7 +13,10 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-background">
       <div className="container mx-auto py-8 px-4 max-w-5xl">
-        <header className="text-center mb-8">
+        <header className="text-center mb-8 relative">
+          <div className="absolute right-0 top-0">
+            <SettingsPanel />
+          </div>
           <h1 className="text-4xl font-bold mb-2">Talk To Data</h1>
           <p className="text-muted-foreground">
             Ask questions about your data in plain English
