@@ -16,7 +16,10 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.models.table import Table
-from app.services.llm import generate_column_description, generate_table_description
+from app.services.llm import (
+    generate_all_column_descriptions,
+    generate_table_description,
+)
 
 
 def generate_data_semantic(
@@ -69,31 +72,34 @@ def generate_data_semantic(
     else:
         semantic["table"]["description"] = f"Data table with {table.row_count} rows"
     
+    # Generate ALL column descriptions in ONE batched LLM call
+    column_descriptions = {}
+    if use_llm and table.columns:
+        try:
+            column_descriptions = generate_all_column_descriptions(
+                table.normalized_name,
+                table.columns,
+                semantic["table"]["description"] or "",
+            )
+        except Exception:
+            # Fallback to empty dict, will use generic descriptions
+            column_descriptions = {}
+    
     # Process each column
     for col in table.columns or []:
+        col_name = col.get("name", "")
+        
         col_semantic = {
-            "name": col.get("name"),
-            "original_name": col.get("original_name", col.get("name")),
+            "name": col_name,
+            "original_name": col.get("original_name", col_name),
             "data_type": col.get("data_type"),
             "nullable": col.get("nullable", True),
             "is_primary_key": col.get("is_primary_key", False),
             "is_unique": col.get("is_unique", False),
-            "description": None,
+            "description": column_descriptions.get(col_name) or col.get("data_type", "Field"),
             "statistics": {},
             "sample_values": col.get("sample_values", [])[:10],
         }
-        
-        # Generate column description
-        if use_llm:
-            try:
-                col_semantic["description"] = generate_column_description(
-                    col.get("name", ""),
-                    col.get("data_type", ""),
-                    col.get("sample_values", []),
-                    semantic["table"]["description"] or "",
-                )
-            except Exception:
-                col_semantic["description"] = col.get("data_type", "Field")
         
         # Add statistics
         col_semantic["statistics"] = {
@@ -104,7 +110,7 @@ def generate_data_semantic(
         }
         
         # Detect special column types
-        name_lower = col.get("name", "").lower()
+        name_lower = col_name.lower()
         if "email" in name_lower:
             col_semantic["format"] = "email"
         elif "phone" in name_lower:
