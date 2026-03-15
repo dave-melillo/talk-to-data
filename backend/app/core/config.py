@@ -37,6 +37,16 @@ class Settings(BaseSettings):
     # Query Limits
     max_query_rows: int = 10000
     query_timeout_seconds: int = 30
+    
+    # API Security
+    require_api_key: bool = False  # Set to True to enable auth
+    api_keys: str = ""  # Comma-separated list of valid API keys
+    
+    def get_valid_api_keys(self) -> set[str]:
+        """Parse comma-separated API keys into a set."""
+        if not self.api_keys:
+            return set()
+        return {key.strip() for key in self.api_keys.split(",") if key.strip()}
 
 
 @lru_cache
