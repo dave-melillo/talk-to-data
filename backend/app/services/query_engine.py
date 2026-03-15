@@ -4,11 +4,13 @@ Query engine service for NL-to-SQL generation.
 Handles:
 - Prompt assembly
 - LLM completion
-- SQL extraction
+- SQL extraction (delegated to shared core)
 - Query recording
+
+SQL extraction and validation logic lives in talk_to_data.core (the single
+source of truth shared with the CLI/Streamlit app).
 """
 
-import re
 import time
 from typing import Any
 
@@ -19,6 +21,8 @@ from app.models.query import QueryHistory
 from app.services.context_assembler import assemble_query_prompt
 from app.services.llm import llm_complete
 
+from talk_to_data.core.sql_utils import extract_sql  # shared core
+
 settings = get_settings()
 
 
@@ -26,34 +30,6 @@ class QueryGenerationError(Exception):
     """Exception raised when query generation fails."""
 
     pass
-
-
-def extract_sql(response: str) -> str:
-    """
-    Extract SQL query from LLM response.
-    
-    Handles various formats:
-    - SQL inside ```sql code blocks
-    - SQL inside ``` code blocks
-    - Raw SQL
-    """
-    # Try ```sql block first
-    sql_match = re.search(r'```sql\n(.*?)```', response, re.DOTALL)
-    if sql_match:
-        return sql_match.group(1).strip()
-    
-    # Try plain ``` block
-    sql_match = re.search(r'```\n(.*?)```', response, re.DOTALL)
-    if sql_match:
-        return sql_match.group(1).strip()
-    
-    # Try looking for SELECT
-    sql_match = re.search(r'(SELECT\s+.*?)(?:\n\n|$)', response, re.DOTALL | re.IGNORECASE)
-    if sql_match:
-        return sql_match.group(1).strip()
-    
-    # Just return the whole thing, might need manual cleanup
-    return response.strip()
 
 
 def generate_sql(
@@ -64,13 +40,13 @@ def generate_sql(
 ) -> tuple[str, dict[str, Any]]:
     """
     Generate SQL from natural language question.
-    
+
     Returns:
         Tuple of (generated_sql, metadata_dict)
     """
     # Assemble prompt
     prompt = assemble_query_prompt(db, question)
-    
+
     # Get LLM response
     start_time = time.time()
     try:
@@ -84,13 +60,13 @@ def generate_sql(
         generation_time_ms = int((time.time() - start_time) * 1000)
     except Exception as e:
         raise QueryGenerationError(f"LLM generation failed: {e}") from e
-    
-    # Extract SQL
+
+    # Extract SQL using shared core
     sql = extract_sql(response)
-    
+
     if not sql or not sql.upper().startswith("SELECT"):
         raise QueryGenerationError(f"Failed to generate valid SQL. Response: {response[:200]}")
-    
+
     metadata = {
         "prompt_tokens": len(prompt) // 4,  # Rough estimate
         "response_tokens": len(response) // 4,
@@ -98,7 +74,7 @@ def generate_sql(
         "provider": provider or settings.default_llm_provider,
         "model": model or settings.default_llm_model,
     }
-    
+
     return sql, metadata
 
 
@@ -130,9 +106,9 @@ def record_query(
         llm_model=llm_model,
         context_used=context_used,
     )
-    
+
     db.add(query)
     db.commit()
     db.refresh(query)
-    
+
     return query
