@@ -15,6 +15,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.models.query import QueryHistory
 from app.models.table import Table
 from app.services.biz_semantic import format_biz_semantic_for_context
 from app.services.data_semantic import generate_schema_summary
@@ -47,7 +48,7 @@ def assemble_context(
     # Example queries (if available)
     examples = ""
     if include_examples:
-        examples = generate_example_queries()
+        examples = generate_example_queries(db=db)
     
     # Truncate if too long
     # Approximation: 4 chars per token (rough estimate)
@@ -74,8 +75,43 @@ def assemble_context(
     }
 
 
-def generate_example_queries() -> str:
-    """Generate example queries for few-shot learning."""
+def generate_example_queries(db: Session | None = None, limit: int = 5) -> str:
+    """Generate example queries for few-shot learning.
+
+    Pulls from successful query history when available,
+    falls back to static examples when history is empty.
+    """
+    examples = []
+
+    if db:
+        recent = (
+            db.query(QueryHistory)
+            .filter(
+                QueryHistory.execution_success == True,  # noqa: E712
+                QueryHistory.row_count > 0,
+            )
+            .order_by(QueryHistory.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+
+        for q in recent:
+            examples.append({"question": q.question, "sql": q.generated_sql})
+
+    if not examples:
+        return _static_example_queries()
+
+    lines = ["## Example Queries (from your history)\n"]
+    for i, ex in enumerate(examples, 1):
+        lines.append(f"### Example {i}")
+        lines.append(f'**Question:** {ex["question"]}')
+        lines.append(f'**SQL:**\n```sql\n{ex["sql"]}\n```\n')
+
+    return "\n".join(lines)
+
+
+def _static_example_queries() -> str:
+    """Fallback static example queries when no history is available."""
     return """## Example Queries
 
 ### Example 1: Count with filter
@@ -92,7 +128,7 @@ WHERE created_at >= DATE_TRUNC('month', NOW() - INTERVAL '1 month')
 **Question:** What are the top 5 customers by revenue?
 **SQL:**
 ```sql
-SELECT 
+SELECT
     c.customer_id,
     c.name,
     SUM(o.total) AS total_revenue
@@ -119,7 +155,7 @@ ORDER BY created_at DESC;
 **Question:** What's the monthly order count and revenue for 2024?
 **SQL:**
 ```sql
-SELECT 
+SELECT
     DATE_TRUNC('month', created_at) AS month,
     COUNT(*) AS order_count,
     SUM(total) AS revenue
