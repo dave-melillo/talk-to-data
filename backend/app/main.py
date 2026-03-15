@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import api_router
 from app.core.config import get_settings
 from app.core.database import engine
+from app.middleware.auth import APIKeyMiddleware
 from app.models import Base
 
 settings = get_settings()
@@ -30,6 +31,9 @@ app = FastAPI(
     description="Natural Language to SQL - Ask questions about your data in plain English",
     lifespan=lifespan,
 )
+
+# API Key authentication (optional, enable via REQUIRE_API_KEY=true)
+app.add_middleware(APIKeyMiddleware)
 
 # CORS middleware for frontend
 app.add_middleware(
