@@ -1,0 +1,21 @@
+customer_id,name,email,city,state,created_at
+1,Alice Johnson,alice@email.com,New York,NY,2024-01-15
+2,Bob Smith,bob@email.com,Los Angeles,CA,2024-02-20
+3,Carol Williams,carol@email.com,Chicago,IL,2024-03-10
+4,David Brown,david@email.com,Houston,TX,2024-04-05
+5,Eve Davis,eve@email.com,Phoenix,AZ,2024-05-12
+6,Frank Miller,frank@email.com,Philadelphia,PA,2024-06-18
+7,Grace Wilson,grace@email.com,San Antonio,TX,2024-07-22
+8,Henry Moore,henry@email.com,San Diego,CA,2024-08-30
+9,Ivy Taylor,ivy@email.com,Dallas,TX,2024-09-14
+10,Jack Anderson,jack@email.com,San Jose,CA,2024-10-01
+11,Karen Thomas,karen@email.com,Austin,TX,2024-10-15
+12,Leo Jackson,leo@email.com,Jacksonville,FL,2024-11-02
+13,Mia White,mia@email.com,Fort Worth,TX,2024-11-20
+14,Noah Harris,noah@email.com,Columbus,OH,2024-12-05
+15,Olivia Martin,olivia@email.com,Charlotte,NC,2024-12-18
+16,Peter Garcia,peter@email.com,San Francisco,CA,2025-01-08
+17,Quinn Martinez,quinn@email.com,Indianapolis,IN,2025-01-22
+18,Rachel Robinson,rachel@email.com,Seattle,WA,2025-02-03
+19,Sam Clark,sam@email.com,Denver,CO,2025-02-15
+20,Tina Rodriguez,tina@email.com,Boston,MA,2025-02-28

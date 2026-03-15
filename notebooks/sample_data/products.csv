@@ -1,0 +1,16 @@
+product_id,name,category,price,stock_quantity
+P001,Wireless Mouse,Electronics,29.99,150
+P002,Mechanical Keyboard,Electronics,89.99,75
+P003,USB-C Hub,Electronics,45.00,200
+P004,Monitor Stand,Accessories,34.99,120
+P005,Laptop Sleeve,Accessories,24.99,180
+P006,Webcam HD,Electronics,79.99,90
+P007,Desk Lamp,Office,42.50,100
+P008,Ergonomic Chair,Furniture,299.00,25
+P009,Standing Desk,Furniture,449.00,15
+P010,Noise-Canceling Headphones,Electronics,199.99,60
+P011,Portable Charger,Electronics,35.00,200
+P012,Mouse Pad XL,Accessories,19.99,300
+P013,Cable Management Kit,Accessories,15.99,250
+P014,Desk Organizer,Office,28.50,140
+P015,Blue Light Glasses,Accessories,39.99,175
