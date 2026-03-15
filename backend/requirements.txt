@@ -36,3 +36,4 @@ httpx>=0.26.0
 black>=24.1.0
 ruff>=0.2.0
 mypy>=1.8.0
+tenacity>=8.2.0
