@@ -2,6 +2,9 @@
 
 **Natural Language to SQL** — Ask questions about your data in plain English.
 
+> **📌 Current Version:** v3.0 (FastAPI + Next.js)  
+> **Looking for v2 (Streamlit)?** See `archive/v2/` and [migration guide](archive/v2/MIGRATION.md)
+
 ![Python](https://img.shields.io/badge/Python-3.11+-blue)
 ![Next.js](https://img.shields.io/badge/Next.js-14-black)
 ![License](https://img.shields.io/badge/License-MIT-green)
