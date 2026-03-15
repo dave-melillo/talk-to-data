@@ -135,6 +135,9 @@ def generate_column_description(
 ) -> str:
     """
     Generate a natural language description of a column.
+    
+    DEPRECATED: Use generate_all_column_descriptions() for better performance.
+    This makes one API call per column which is slow and expensive.
     """
     samples = str(sample_values[:5]) if sample_values else "no samples"
     
@@ -152,3 +155,73 @@ Description (one phrase, e.g., "Customer email address" or "Order creation times
         return description.strip().strip('"')
     except Exception:
         return f"{data_type} field"
+
+
+def generate_all_column_descriptions(
+    table_name: str,
+    columns: list[dict[str, Any]],
+    table_context: str = "",
+) -> dict[str, str]:
+    """
+    Generate descriptions for ALL columns in ONE LLM call.
+    
+    Much faster and cheaper than calling generate_column_description() per column.
+    
+    Returns:
+        Dict mapping column_name -> description
+    """
+    if not columns:
+        return {}
+    
+    # Build column summary for prompt
+    col_lines = []
+    for col in columns:
+        name = col.get("name", "")
+        dtype = col.get("data_type", "unknown")
+        samples = col.get("sample_values", [])[:3]
+        samples_str = str(samples) if samples else "no samples"
+        
+        col_lines.append(f"- {name} ({dtype}): {samples_str}")
+    
+    col_summary = "\n".join(col_lines[:50])  # Limit to first 50 columns
+    
+    prompt = f"""Analyze this database table and write a brief description for EACH column.
+
+Table: {table_name}
+{f"Context: {table_context}" if table_context else ""}
+
+Columns:
+{col_summary}
+
+For each column, write a concise description (3-8 words). Output as:
+column_name: description
+
+Example:
+customer_id: Unique customer identifier
+email: Customer email address
+created_at: Account creation timestamp
+
+Now describe each column:"""
+
+    system = "You are a database analyst. Provide concise, accurate column descriptions."
+    
+    try:
+        response = llm_complete(prompt, system=system, max_tokens=500, temperature=0.2)
+        
+        # Parse response into dict
+        descriptions = {}
+        for line in response.strip().split("\n"):
+            if ":" in line:
+                parts = line.split(":", 1)
+                col_name = parts[0].strip()
+                desc = parts[1].strip().strip('"').strip("'")
+                descriptions[col_name] = desc
+        
+        return descriptions
+    
+    except Exception as e:
+        # Fallback: return generic descriptions
+        return {
+            col.get("name", ""): f"{col.get('data_type', 'unknown')} field"
+            for col in columns
+        }
