@@ -18,6 +18,7 @@ from app.core.config import get_settings
 from app.models.query import QueryHistory
 from app.services.context_assembler import assemble_query_prompt
 from app.services.llm import llm_complete
+from app.services.sql_validator import safe_execute, validate_sql
 
 settings = get_settings()
 
@@ -56,21 +57,22 @@ def extract_sql(response: str) -> str:
     return response.strip()
 
 
-def generate_sql(
+def _generate_sql_core(
     db: Session,
     question: str,
     provider: str | None = None,
     model: str | None = None,
+    error_context: str | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """
-    Generate SQL from natural language question.
-    
+    Core SQL generation: assemble prompt, call LLM, extract SQL.
+
     Returns:
         Tuple of (generated_sql, metadata_dict)
     """
-    # Assemble prompt
-    prompt = assemble_query_prompt(db, question)
-    
+    # Assemble prompt (with optional error context for retries)
+    prompt = assemble_query_prompt(db, question, error_context=error_context)
+
     # Get LLM response
     start_time = time.time()
     try:
@@ -84,13 +86,13 @@ def generate_sql(
         generation_time_ms = int((time.time() - start_time) * 1000)
     except Exception as e:
         raise QueryGenerationError(f"LLM generation failed: {e}") from e
-    
+
     # Extract SQL
     sql = extract_sql(response)
-    
+
     if not sql or not sql.upper().startswith("SELECT"):
         raise QueryGenerationError(f"Failed to generate valid SQL. Response: {response[:200]}")
-    
+
     metadata = {
         "prompt_tokens": len(prompt) // 4,  # Rough estimate
         "response_tokens": len(response) // 4,
@@ -98,8 +100,55 @@ def generate_sql(
         "provider": provider or settings.default_llm_provider,
         "model": model or settings.default_llm_model,
     }
-    
+
     return sql, metadata
+
+
+def generate_sql(
+    db: Session,
+    question: str,
+    provider: str | None = None,
+    model: str | None = None,
+    max_retries: int = 2,
+) -> tuple[str, dict[str, Any]]:
+    """
+    Generate SQL from natural language question with error recovery.
+
+    If validation or execution fails, retries with error context in the prompt
+    so the LLM can self-correct.
+
+    Returns:
+        Tuple of (generated_sql, metadata_dict)
+    """
+    last_error = None
+
+    for attempt in range(max_retries + 1):
+        sql, metadata = _generate_sql_core(
+            db, question,
+            provider=provider,
+            model=model,
+            error_context=last_error,
+        )
+
+        metadata["retry_count"] = attempt
+
+        # Validate the generated SQL
+        validation = validate_sql(sql, db)
+        if not validation["valid"]:
+            last_error = validation["errors"][0]["message"]
+            continue
+
+        # Try executing to catch runtime errors
+        try:
+            safe_execute(sql, db)
+            return sql, metadata
+        except Exception as e:
+            last_error = str(e)
+            continue
+
+    raise QueryGenerationError(
+        f"Failed after {max_retries} retries: {last_error}"
+    )
 
 
 def record_query(
