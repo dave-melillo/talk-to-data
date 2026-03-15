@@ -61,15 +61,18 @@ def generate_sql(
     question: str,
     provider: str | None = None,
     model: str | None = None,
+    conversation_history: list[dict] | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """
     Generate SQL from natural language question.
-    
+
     Returns:
         Tuple of (generated_sql, metadata_dict)
     """
     # Assemble prompt
-    prompt = assemble_query_prompt(db, question)
+    prompt = assemble_query_prompt(
+        db, question, conversation_history=conversation_history
+    )
     
     # Get LLM response
     start_time = time.time()

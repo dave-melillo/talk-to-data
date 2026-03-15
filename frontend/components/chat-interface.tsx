@@ -59,10 +59,35 @@ export function ChatInterface({ onQuery }: ChatInterfaceProps) {
     setLoading(true);
 
     try {
+      // Build conversation history from last 3 Q&A pairs
+      const conversationHistory: { question: string; sql: string; success: boolean }[] = [];
+      const allMessages = [...messages, userMessage];
+      for (let i = allMessages.length - 1; i >= 0 && conversationHistory.length < 3; i--) {
+        const msg = allMessages[i];
+        if (msg.role === "assistant" && msg.sql) {
+          // Find the preceding user message
+          const userMsg = allMessages
+            .slice(0, i)
+            .reverse()
+            .find((m) => m.role === "user");
+          if (userMsg) {
+            conversationHistory.unshift({
+              question: userMsg.content,
+              sql: msg.sql,
+              success: !msg.error,
+            });
+          }
+        }
+      }
+
       const res = await fetch("/api/v1/queries/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: input, execute: true }),
+        body: JSON.stringify({
+          question: input,
+          execute: true,
+          conversation_history: conversationHistory,
+        }),
       });
 
       const result = await res.json();

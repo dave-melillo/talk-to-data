@@ -133,15 +133,46 @@ ORDER BY month;
 """
 
 
+def format_conversation_history(history: list[dict]) -> str:
+    """
+    Format recent conversation history for inclusion in the LLM prompt.
+
+    Provides context so the LLM can resolve references like 'that', 'those',
+    'filter it', etc. to previous queries.
+    """
+    if not history:
+        return ""
+
+    lines = ["## Conversation Context",
+             "The user has asked these questions previously in this session:"]
+    for i, entry in enumerate(history, 1):
+        status = "succeeded" if entry.get("success", True) else "failed"
+        lines.append(f"{i}. Q: '{entry['question']}' → SQL that {status}")
+        # Include the SQL so the LLM can reference columns/tables
+        sql_preview = entry.get("sql", "")
+        if sql_preview:
+            lines.append(f"   SQL: {sql_preview}")
+
+    lines.append("")
+    lines.append(
+        "When the user says 'that', 'those', 'filter it', 'add to it', etc., "
+        "they are referring to the previous query context."
+    )
+    return "\n".join(lines)
+
+
 def format_prompt(context: dict[str, str]) -> str:
     """
     Format the assembled context into a prompt for the LLM.
     """
+    conversation_section = context.get("conversation_history", "")
+    conversation_block = f"\n\n{conversation_section}" if conversation_section else ""
+
     return f"""{context['schema']}
 
 {context['business_context']}
 
-{context['examples']}
+{context['examples']}{conversation_block}
 
 ---
 
@@ -158,6 +189,7 @@ Rules:
 4. Include a brief SQL comment explaining the logic
 5. Format the SQL with proper indentation
 6. If the question is ambiguous, make reasonable assumptions and note them in comments
+7. If the user refers to a previous query ('that', 'those', 'filter it'), use the conversation context to understand what they mean
 
 Generate the SQL query:
 """
@@ -167,9 +199,14 @@ def assemble_query_prompt(
     db: Session,
     question: str,
     tables: list[Table] | None = None,
+    conversation_history: list[dict] | None = None,
 ) -> str:
     """
     Main entry point: assemble context and format as prompt.
     """
     context = assemble_context(db, question, tables)
+    if conversation_history:
+        context["conversation_history"] = format_conversation_history(
+            conversation_history
+        )
     return format_prompt(context)
