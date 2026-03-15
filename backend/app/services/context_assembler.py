@@ -9,15 +9,96 @@ Includes:
 - Business context
 - Example queries (few-shot learning)
 - Query-specific instructions
+
+NOTE: Uses SEMANTIC truncation — drops entire tables, never truncates mid-structure.
 """
 
 from typing import Any
+import re
 
 from sqlalchemy.orm import Session
 
 from app.models.table import Table
 from app.services.biz_semantic import format_biz_semantic_for_context
 from app.services.data_semantic import generate_schema_summary
+
+
+def estimate_tokens(text: str) -> int:
+    """
+    Estimate token count for text.
+    
+    Conservative estimate: ~3 chars per token for structured/code text.
+    This is more accurate than 4 chars/token for markdown tables and SQL.
+    """
+    return len(text) // 3
+
+
+def truncate_schema_semantically(
+    db: Session,
+    tables: list[Table],
+    question: str,
+    max_tokens: int,
+) -> str:
+    """
+    Truncate schema by dropping entire tables, never mid-structure.
+    
+    Strategy:
+    1. Identify tables mentioned in the question (keep these)
+    2. Rank remaining tables by relevance (row count, column count)
+    3. Include tables until budget exhausted
+    """
+    question_lower = question.lower()
+    
+    # Categorize tables
+    mentioned_tables = []
+    other_tables = []
+    
+    for table in tables:
+        # Check if table name appears in question
+        if table.normalized_name.lower() in question_lower:
+            mentioned_tables.append(table)
+        else:
+            other_tables.append(table)
+    
+    # Sort other tables by relevance heuristic
+    # (prefer larger tables and tables with more columns)
+    other_tables.sort(
+        key=lambda t: (t.row_count or 0) * len(t.columns or []),
+        reverse=True,
+    )
+    
+    # Build schema iteratively, stopping when budget hit
+    included_tables = []
+    budget_used = 0
+    
+    # Always include mentioned tables first
+    for table in mentioned_tables:
+        table_schema = generate_schema_summary(db, [table])
+        table_tokens = estimate_tokens(table_schema)
+        
+        if budget_used + table_tokens <= max_tokens:
+            included_tables.append(table)
+            budget_used += table_tokens
+    
+    # Add other tables until budget exhausted
+    for table in other_tables:
+        table_schema = generate_schema_summary(db, [table])
+        table_tokens = estimate_tokens(table_schema)
+        
+        if budget_used + table_tokens <= max_tokens:
+            included_tables.append(table)
+            budget_used += table_tokens
+        else:
+            # Stop — can't fit more tables
+            break
+    
+    # Generate final schema with included tables
+    if not included_tables:
+        # Fallback: if even one table doesn't fit, include the first mentioned one
+        # (truncation is better than no schema at all)
+        included_tables = mentioned_tables[:1] if mentioned_tables else tables[:1]
+    
+    return generate_schema_summary(db, included_tables)
 
 
 def assemble_context(
@@ -49,22 +130,37 @@ def assemble_context(
     if include_examples:
         examples = generate_example_queries()
     
-    # Truncate if too long
-    # Approximation: 4 chars per token (rough estimate)
-    total_chars = len(schema) + len(biz_context) + len(examples)
-    max_chars = max_context_tokens * 4
+    # Truncate if too long using SEMANTIC truncation
+    # Token estimation: ~3 chars per token (conservative for code/structured text)
+    total_tokens = estimate_tokens(schema) + estimate_tokens(biz_context) + estimate_tokens(examples)
     
-    if total_chars > max_chars:
-        # Priority: schema > biz context > examples
-        if len(schema) > max_chars * 0.5:
-            # Truncate schema by selecting only most relevant tables
-            schema = schema[: int(max_chars * 0.5)]
-        remaining = max_chars - len(schema)
-        if len(biz_context) > remaining * 0.5:
-            biz_context = biz_context[: int(remaining * 0.5)]
-        remaining -= len(biz_context)
-        if len(examples) > remaining:
-            examples = examples[:remaining]
+    if total_tokens > max_context_tokens:
+        # Priority order: business context > schema > examples
+        # Never truncate mid-structure — drop entire sections cleanly
+        
+        biz_tokens = estimate_tokens(biz_context)
+        examples_tokens = estimate_tokens(examples)
+        schema_tokens = estimate_tokens(schema)
+        
+        budget_remaining = max_context_tokens
+        
+        # 1. Always include full business context (it's critical user input)
+        budget_remaining -= biz_tokens
+        
+        # 2. Drop examples if needed (they're optional)
+        if budget_remaining < schema_tokens and examples_tokens > 0:
+            examples = ""
+            budget_remaining += examples_tokens  # Reclaim
+        
+        # 3. If schema still too large, drop least relevant tables
+        if budget_remaining < schema_tokens:
+            schema = truncate_schema_semantically(
+                db, tables, question, max_tokens=budget_remaining
+            )
+        
+        # Note: We never truncate biz_context mid-structure
+        # If even business context alone exceeds limit, that's a config error
+        # (should be caught at upload time)
     
     return {
         "schema": schema,
