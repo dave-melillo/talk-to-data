@@ -137,6 +137,17 @@ def format_prompt(context: dict[str, str]) -> str:
     """
     Format the assembled context into a prompt for the LLM.
     """
+    error_section = ""
+    if context.get("error_context"):
+        error_section = f"""
+## Previous Attempt Failed
+The previously generated SQL failed with the following error:
+{context['error_context']}
+
+Please fix the issue and generate a corrected query.
+
+"""
+
     return f"""{context['schema']}
 
 {context['business_context']}
@@ -147,7 +158,7 @@ def format_prompt(context: dict[str, str]) -> str:
 
 ## User Question
 "{context['question']}"
-
+{error_section}
 ## Instructions
 Generate a PostgreSQL query to answer the user's question.
 
@@ -167,9 +178,12 @@ def assemble_query_prompt(
     db: Session,
     question: str,
     tables: list[Table] | None = None,
+    error_context: str | None = None,
 ) -> str:
     """
     Main entry point: assemble context and format as prompt.
     """
     context = assemble_context(db, question, tables)
+    if error_context:
+        context["error_context"] = error_context
     return format_prompt(context)
