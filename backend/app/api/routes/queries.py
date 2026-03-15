@@ -20,6 +20,14 @@ from app.services.sql_validator import SQLValidationError, safe_execute, validat
 router = APIRouter()
 
 
+class ConversationEntry(BaseModel):
+    """A previous question/answer pair from the conversation."""
+
+    question: str
+    sql: str
+    success: bool = True
+
+
 class QueryRequest(BaseModel):
     """Request to generate SQL from natural language."""
 
@@ -27,6 +35,10 @@ class QueryRequest(BaseModel):
     execute: bool = Field(True, description="Execute the generated SQL")
     llm_provider: str | None = None
     llm_model: str | None = None
+    conversation_history: list[ConversationEntry] = Field(
+        default_factory=list,
+        description="Recent conversation Q&A pairs for multi-turn context",
+    )
 
 
 class QueryResponse(BaseModel):
@@ -61,6 +73,9 @@ async def generate_query(
             request.question,
             provider=request.llm_provider,
             model=request.llm_model,
+            conversation_history=[
+                entry.model_dump() for entry in request.conversation_history
+            ],
         )
     except QueryGenerationError as e:
         # Record failed generation
