@@ -159,6 +159,12 @@ Rules:
 5. Format the SQL with proper indentation
 6. If the question is ambiguous, make reasonable assumptions and note them in comments
 
+**CRITICAL:** Wrap your SQL in a code block:
+```sql
+-- Your SQL here
+SELECT ...
+```
+
 Generate the SQL query:
 """
 

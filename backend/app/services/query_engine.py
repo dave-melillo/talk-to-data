@@ -33,27 +33,36 @@ def extract_sql(response: str) -> str:
     Extract SQL query from LLM response.
     
     Handles various formats:
-    - SQL inside ```sql code blocks
+    - SQL inside ```sql code blocks (preferred)
     - SQL inside ``` code blocks
-    - Raw SQL
+    - Raw SQL starting with SELECT or WITH
+    
+    Raises QueryGenerationError if SQL cannot be extracted.
     """
-    # Try ```sql block first
-    sql_match = re.search(r'```sql\n(.*?)```', response, re.DOTALL)
+    # Try ```sql block first (preferred format)
+    sql_match = re.search(r'```sql\s*\n(.*?)\n```', response, re.DOTALL)
     if sql_match:
         return sql_match.group(1).strip()
     
     # Try plain ``` block
-    sql_match = re.search(r'```\n(.*?)```', response, re.DOTALL)
+    sql_match = re.search(r'```\s*\n(.*?)\n```', response, re.DOTALL)
+    if sql_match:
+        sql = sql_match.group(1).strip()
+        # Verify it looks like SQL
+        if sql.upper().startswith(("SELECT", "WITH")):
+            return sql
+    
+    # Try looking for raw SELECT or WITH at start of line
+    sql_match = re.search(r'^((?:SELECT|WITH)\s+.*?)(?:\n\n|$)', response, re.DOTALL | re.IGNORECASE | re.MULTILINE)
     if sql_match:
         return sql_match.group(1).strip()
     
-    # Try looking for SELECT
-    sql_match = re.search(r'(SELECT\s+.*?)(?:\n\n|$)', response, re.DOTALL | re.IGNORECASE)
-    if sql_match:
-        return sql_match.group(1).strip()
-    
-    # Just return the whole thing, might need manual cleanup
-    return response.strip()
+    # Failed to extract SQL - don't guess
+    raise QueryGenerationError(
+        f"Could not extract SQL from LLM response. "
+        f"Response should contain SQL in ```sql code block or start with SELECT/WITH. "
+        f"Got: {response[:200]}"
+    )
 
 
 def generate_sql(
